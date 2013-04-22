@@ -31,11 +31,16 @@ class Image(object):
     def get_image(self):
         return self.image
 
-    def write_jpeg(self, fname):
+    def write_jpeg(self, fname, rebin=None):
         from . import jpegs
         _make_dir(fname)
         print fname
-        jpegs.write_se_jpeg(fname, self.image)
+        if rebin:
+            import images
+            imrebin=images.rebin(self.image, rebin)
+            jpegs.write_se_jpeg(fname, imrebin)
+        else:
+            jpegs.write_se_jpeg(fname, self.image)
 
     def _load_data(self):
         print self.image_file
@@ -104,7 +109,7 @@ class CutoutMaker(object):
                 ('bkg_file',bstr),
                 ('cat_file',cstr),
                 ('cutout_size','i4'),
-                ('ncenter','i4')]
+                ('ncutouts','i4')]
         cendt=[('index','i4'),
                ('cen_row','f4'),
                ('cen_col','f4')]
@@ -114,7 +119,7 @@ class CutoutMaker(object):
         meta['bkg_file']=self.bkg_file
         meta['cat_file']=self.cat_file
         meta['cutout_size'] = self.cutout_size
-        meta['ncenter'] = ncen
+        meta['cutouts'] = ncen
 
         cendata=numpy.zeros(ncen, dtype=cendt)
 
