@@ -15,3 +15,10 @@ Cutout file format
 
 - Third extension is "mosaic" holds the mosaic of cutouts.  This will
   be square, so 100 cutouts will be in a 10x10 grid.
+
+Dependencies
+------------
+- fitsio https://github.com/esheldon/fitsio
+- images.py Erin Sheldon's library https://github.com/esheldon/espy
+- PIL
+- numpy
