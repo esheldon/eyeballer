@@ -1,5 +1,5 @@
 """
-    %prog [options] image bkg cat cutout_file jpeg_file
+    %prog [options] image bkg cat cutout_file mosaic_file jpeg_file
 
 Make a FITS file with cutouts from the indicated image.  Bright objects
 are chosen from the catalog.
@@ -20,7 +20,7 @@ parser.add_option('-n','--ncutout',default=100,
 def main():
     options, args = parser.parse_args(sys.argv[1:])
 
-    if len(args) < 5:
+    if len(args) < 6:
         parser.print_help()
         sys.exit(1)
 
@@ -28,7 +28,8 @@ def main():
     bkg=args[1]
     cat=args[2]
     cutout_file=args[3]
-    jpeg_file=args[4]
+    mosaic_file=args[4]
+    jpeg_file=args[5]
 
     cutout_size=int(options.size)
     ncutout=int(options.ncutout)
@@ -37,10 +38,9 @@ def main():
                          bkg_file=bkg,
                          cat_file=cat,
                          cutout_size=cutout_size,
-                         ncutout=ncutout,
-                         output_file=cutout_file)
-    cutmaker.write_cutouts()
+                         ncutout=ncutout)
 
-    cutmaker.image_obj.write_jpeg(jpeg_file)
+    cutmaker.write_cutouts(cutout_file, mosaic_file)
+    cutmaker.image_obj.write_jpeg(jpeg_file, rebin=4)
 
 main()

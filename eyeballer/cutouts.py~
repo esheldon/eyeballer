@@ -2,6 +2,7 @@ import os
 import numpy
 import fitsio
 
+from . import jpegs
 # uncalibrated mags
 MINMAG=10
 MAXMAG=15
@@ -12,6 +13,8 @@ COL_FIELD='xwin_image'
 MAG_FIELD='mag_auto'
 
 PADDING = 10
+
+MOSAIC_BOOST=3
 
 class Image(object):
     def __init__(self, **keys):
@@ -79,25 +82,67 @@ class CutoutMaker(object):
         self.cat_file=keys['cat_file']
         self.cutout_size=keys['cutout_size']
         self.ncutout=keys['ncutout']
-        self.output_file=keys['output_file']
 
         self._load_data()
         self._set_centers()
 
-    def write_cutouts(self):
-        _make_dir(self.output_file)
+    def write_cutouts(self, cutouts_file, mosaic_file):
+        """
+        Write the cutouts.  Also fill in a mosaic
+        """
+        _make_dir(cutouts_file)
+        _make_dir(mosaic_file)
+        self._make_mosaic()
+        self._write_fits(cutouts_file)
+        self._write_mosaic_jpeg(mosaic_file)
 
-        print 'writing to:',self.output_file
-        with fitsio.FITS(self.output_file,'rw',clobber=True) as fits:
+    def _write_fits(self, cutouts_file):
+        print cutouts_file
+        with fitsio.FITS(cutouts_file,'rw',clobber=True) as fits:
             meta,cendata=self._get_tables()
             fits.write(meta, extname="metadata")
             fits.write(cendata, extname="centers")
+            fits.write(self.mosaic, extname="mosaic")
 
-            print 'writing:',len(self.centers),'centers'
-            for cen in self.centers:
-                cut=Cutout(self.image, cen, self.cutout_size)
-                sub_im=cut.get_subimage()
-                fits.write(sub_im)
+        self._write_mosaic_jpeg(mosaic_file)
+
+    def _write_mosaic_jpeg(self, mosaic_file):
+        import images
+        print mosaic_file
+        m=images.boost(self.mosaic, MOSAIC_BOOST)
+        jpegs.write_se_jpeg(mosaic_file, m)
+
+    def _add_to_mosaic(self, cutout, i):
+
+        row=i/self.mcols
+        col=i % self.mcols
+
+        row1 = row*self.cutout_size
+        row2 = (row+1)*self.cutout_size
+        col1 = col*self.cutout_size
+        col2 = (col+1)*self.cutout_size
+
+        self.mosaic[row1:row2, col1:col2] = cutout
+
+    def _make_mosaic(self):
+        """
+        Make the mosaic and set the row,col grid
+        """
+        ntot=len(self.centers)
+        nrows,ncols=get_grid(ntot)
+
+        self.mrows=nrows
+        self.mcols=ncols
+        totrows=self.mrows*self.cutout_size
+        totcols=self.mcols*self.cutout_size
+        self.mosaic=numpy.zeros((totrows,totcols), dtype='f4')
+
+        for i, cen in enumerate(self.centers):
+            cut=Cutout(self.image, cen, self.cutout_size)
+            sub_im=cut.get_subimage()
+            self._add_to_mosaic(sub_im, i)
+
+
 
     def _get_tables(self):
         istr='S%d' % len(self.image_file)
@@ -119,7 +164,7 @@ class CutoutMaker(object):
         meta['bkg_file']=self.bkg_file
         meta['cat_file']=self.cat_file
         meta['cutout_size'] = self.cutout_size
-        meta['cutout'] = ncen
+        meta['ncutout'] = ncen
 
         cendata=numpy.zeros(ncen, dtype=cendt)
 
@@ -136,7 +181,7 @@ class CutoutMaker(object):
                                  self.cutout_size)
         indices=selector.get_indices()
         if len(indices) == 0:
-            raise ValueError("found not centers")
+            raise ValueError("found no good centers")
 
         # select random subset
         s=numpy.random.random(indices.size).argsort()
@@ -249,6 +294,7 @@ class CatalogSelector(object):
         self.indices=w
 
 def get_grid(ntot):
+    from math import sqrt
     sq=int(sqrt(ntot))
     if ntot==sq*sq:
         return (sq,sq)
