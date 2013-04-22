@@ -26,21 +26,27 @@ class Image(object):
         self.image_file=keys['image_file']
         self.bkg_file=keys.get('bkg_file',None)
 
-        self._load_data(self)
+        self._load_data()
 
     def get_image(self):
         return self.image
 
-    def write_jpeg(self, fname):
+    def write_jpeg(self, fname, rebin=None):
         from . import jpegs
         _make_dir(fname)
-        jpegs.write_se_image(fname, self.image)
+        print fname
+        if rebin:
+            import images
+            imrebin=images.rebin(self.image, rebin)
+            jpegs.write_se_jpeg(fname, imrebin)
+        else:
+            jpegs.write_se_jpeg(fname, self.image)
 
     def _load_data(self):
-        print image
+        print self.image_file
         image=fitsio.read(self.image_file, ext=1)
         if self.bkg_file is not None:
-            print bkg
+            print self.bkg_file
             bkg=fitsio.read(self.bkg_file, ext=1)
             image -= bkg
             self.bkg=bkg
@@ -148,11 +154,11 @@ class CutoutMaker(object):
         self.centers=centers
 
     def _load_data(self):
-        imobj=Image(image_file=self.image,
+        imobj=Image(image_file=self.image_file,
                  bkg_file=self.bkg_file)
 
         self.image_obj=imobj
-        self.image=im.image
+        self.image=imobj.image
         self.cat=fitsio.read(self.cat_file,
                              ext=2,
                              lower=True,

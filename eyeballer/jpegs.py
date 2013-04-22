@@ -4,7 +4,7 @@ SCALE=.004
 NONLINEAR=.16
 
 def write_se_jpeg(fname, image, **keys):
-    imout = scale_se_image(im, **keys)
+    imout = scale_se_image(image, **keys)
     write_jpg(fname, imout, quality=90)
 
 def scale_se_image(im, 
@@ -22,6 +22,7 @@ def scale_se_image(im,
     from numpy import median
     import images
 
+    ims=im.copy()
     ims *= (scale*nominal_exptime/exptime)
 
     ims = images.asinh_scale(ims, nonlinear)

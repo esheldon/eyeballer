@@ -3,6 +3,8 @@
 
 Make a FITS file with cutouts from the indicated image.  Bright objects
 are chosen from the catalog.
+
+Also write a jpeg of the entire ccd
 """
 import sys
 from optparse import OptionParser

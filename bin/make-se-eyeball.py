@@ -41,6 +41,6 @@ def main():
                          output_file=cutout_file)
     cutmaker.write_cutouts()
 
-    cutmaker.image_obj.write_jpeg(jpeg_file)
+    cutmaker.image_obj.write_jpeg(jpeg_file, rebin=4)
 
 main()
