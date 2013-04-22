@@ -11,6 +11,44 @@ COL_FIELD='xwin_image'
 
 MAG_FIELD='mag_auto'
 
+PADDING = 10
+
+class Image(object):
+    def __init__(self, **keys):
+        """
+        parameters
+        ----------
+        image_file: FITS filename
+            The image from which to cut
+        bkg_file: FITS filename, optional
+            The associated background file
+        """
+        self.image_file=keys['image_file']
+        self.bkg_file=keys.get('bkg_file',None)
+
+        self._load_data(self)
+
+    def get_image(self):
+        return self.image
+
+    def write_jpeg(self, fname):
+        from . import jpegs
+        _make_dir(fname)
+        jpegs.write_se_image(fname, self.image)
+
+    def _load_data(self):
+        print image
+        image=fitsio.read(self.image_file, ext=1)
+        if self.bkg_file is not None:
+            print bkg
+            bkg=fitsio.read(self.bkg_file, ext=1)
+            image -= bkg
+            self.bkg=bkg
+        else:
+            self.bkg=None
+
+        self.image=image
+
 class CutoutMaker(object):
     def __init__(self, **keys):
         """
@@ -41,50 +79,55 @@ class CutoutMaker(object):
         self._set_centers()
 
     def write_cutouts(self):
-        self._make_dir()
+        _make_dir(self.output_file)
 
         print 'writing to:',self.output_file
         with fitsio.FITS(self.output_file,'rw',clobber=True) as fits:
-            data=self._get_table()
-            fits.write(data, extname="center_list")
+            meta,cendata=self._get_tables()
+            fits.write(meta, extname="metadata")
+            fits.write(cendata, extname="centers")
 
             print 'writing:',len(self.centers),'centers'
             for cen in self.centers:
                 cut=Cutout(self.image, cen, self.cutout_size)
                 sub_im=cut.get_subimage()
-                cut.write(sub)
+                fits.write(sub_im)
 
-    def _get_table(self):
+    def _get_tables(self):
         istr='S%d' % len(self.image_file)
         bstr='S%d' % len(self.bkg_file)
         cstr='S%d' % len(self.cat_file)
         ncen=len(self.centers)
 
-        dt=[('image_file',istr),
-            ('bkg_file',bstr),
-            ('cat_file',cstr),
-            ('cutout_size','i4'),
-            ('ncenter','i4'),
-            ('cen_row','f4',ncen),
-            ('cen_col','f4',ncen)]
+        metadt=[('image_file',istr),
+                ('bkg_file',bstr),
+                ('cat_file',cstr),
+                ('cutout_size','i4'),
+                ('ncenter','i4')]
+        cendt=[('index','i4'),
+               ('cen_row','f4'),
+               ('cen_col','f4')]
 
-        table=numpy.zeros(1, dtype=dt)
-        table['image_file']=self.image_file
-        table['bkg_file']=self.bkg_file
-        table['cat_file']=self.cat_file
-        table['cutout_size'] = self.cutout_size
-        table['ncenter'] = ncen
+        meta=numpy.zeros(1, dtype=metadt)
+        meta['image_file']=self.image_file
+        meta['bkg_file']=self.bkg_file
+        meta['cat_file']=self.cat_file
+        meta['cutout_size'] = self.cutout_size
+        meta['ncenter'] = ncen
+
+        cendata=numpy.zeros(ncen, dtype=cendt)
 
         for i,cen in enumerate(self.centers):
-            table['cen_row'][i] = cen[0]
-            table['cen_col'][i] = cen[1]
+            cendata['index'][i] = self.indices[i]
+            cendata['cen_row'][i] = cen[0]
+            cendata['cen_col'][i] = cen[1]
 
-        return table
+        return meta,cendata
 
     def _set_centers(self):
-        selector=self.CatalogSelector(self.cat,
-                                      self.image.shape,
-                                      self.cutout_size)
+        selector=CatalogSelector(self.cat,
+                                 self.image.shape,
+                                 self.cutout_size)
         indices=selector.get_indices()
         if len(indices) == 0:
             raise ValueError("found not centers")
@@ -93,34 +136,28 @@ class CutoutMaker(object):
         s=numpy.random.random(indices.size).argsort()
         s = s[0:self.ncutout]
         indices = indices[s]
+        indices.sort()
 
         centers=[]
-        for ind in indices:
-            cen=(self.cat[ROW_FIELD][ind], self.cat[COL_FIELD][ind])
+        for i in indices:
+            cen=(self.cat[ROW_FIELD][i]-1,
+                 self.cat[COL_FIELD][i]-1)
             centers.append( cen )
         
-        self.centers=cen
+        self.indices=indices
+        self.centers=centers
 
     def _load_data(self):
-        image=fitsio.read(self.image_file, ext=1, verbose=True)
-        bkg=fitsio.read(self.bkg_file, ext=1, verbose=True)
-        image -= bkg
+        imobj=Image(image_file=self.image,
+                 bkg_file=self.bkg_file)
 
-        self.image=image
+        self.image_obj=imobj
+        self.image=im.image
         self.cat=fitsio.read(self.cat_file,
                              ext=2,
                              lower=True,
                              verbose=True)
 
-
-    def _make_dir(self):
-        dir=os.path.basename(output_file)
-        if not os.path.exists(dir):
-            try:
-                os.makedirs(dir)
-            except:
-                # probably a race condition
-                pass
 
 class Cutout(object):
     def __init__(self, image, cen, size):
@@ -175,7 +212,7 @@ class CatalogSelector(object):
     def __init__(self, cat, imshape, cutout_size):
         self.cat=cat
         self.imshape=imshape
-        self.cutout_size
+        self.cutout_size=cutout_size
 
         self._do_select()
 
@@ -184,18 +221,25 @@ class CatalogSelector(object):
 
     def _do_select(self):
         
-        collow = cat[COL_FIELD] - self.cutout_size - 10
-        colhigh = cat[COL_FIELD] + self.cutout_size - 10
-        rowlow = cat[ROW_FIELD] - self.cutout_size - 10
-        rowhigh = cat[ROW_FIELD] + self.cutout_size - 10
+        cat=self.cat
+
+        row=cat[ROW_FIELD]-1
+        col=cat[COL_FIELD]-1
+
+        rad=self.cutout_size/2
+
+        rowlow  = row - rad - PADDING
+        rowhigh = row + rad + PADDING
+        collow  = col - rad - PADDING
+        colhigh = col + rad + PADDING
 
         w,=numpy.where(  (cat['flags'] == 0)
                        & (cat[MAG_FIELD] > MINMAG)
                        & (cat[MAG_FIELD] < MAXMAG)
-                       & (collow > 0)
-                       & (colhigh < self.imshape[1])
                        & (rowlow > 0)
-                       & (rowhigh < self.imshape[0]) )
+                       & (rowhigh < self.imshape[0])
+                       & (collow > 0)
+                       & (colhigh < self.imshape[1]) )
         self.indices=w
 
 def get_grid(ntot):
@@ -207,5 +251,15 @@ def get_grid(ntot):
     else:
         return (sq+1,sq+1)
 
+
+def _make_dir(fname):
+    dir=os.path.dirname(fname)
+    if not os.path.exists(dir):
+        print 'making directory:',dir
+        try:
+            os.makedirs(dir)
+        except:
+            # probably a race condition
+            pass
 
 

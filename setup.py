@@ -1,8 +1,7 @@
 import os
-import glob
 from distutils.core import setup
 
-scripts=['make-se-eyeball']
+scripts=['make-se-eyeball.py']
 scripts=[os.path.join('bin',s) for s in scripts]
 
 setup(name="eyeballer", 
