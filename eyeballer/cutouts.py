@@ -119,7 +119,7 @@ class CutoutMaker(object):
         meta['bkg_file']=self.bkg_file
         meta['cat_file']=self.cat_file
         meta['cutout_size'] = self.cutout_size
-        meta['cutout'] = ncen
+        meta['ncutout'] = ncen
 
         cendata=numpy.zeros(ncen, dtype=cendt)
 
