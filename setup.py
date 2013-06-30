@@ -1,7 +1,7 @@
 import os
 from distutils.core import setup
 
-scripts=['make-se-eyeball.py']
+scripts=['make-se-eyeball.py','make-se-eyeball-full.py']
 scripts=[os.path.join('bin',s) for s in scripts]
 
 setup(name="eyeballer", 

@@ -14,6 +14,7 @@ MAG_FIELD='mag_auto'
 
 PADDING = 10
 
+CHIP_REBIN=4
 MOSAIC_BOOST=3
 
 class Image(object):
@@ -34,7 +35,7 @@ class Image(object):
     def get_image(self):
         return self.image
 
-    def write_jpeg(self, fname, rebin=None):
+    def write_jpeg(self, fname, rebin=CHIP_REBIN):
         from . import jpegs
         _make_dir(fname)
         print fname
@@ -48,6 +49,8 @@ class Image(object):
     def _load_data(self):
         print self.image_file
         image=fitsio.read(self.image_file, ext=1)
+        bpm=fitsio.read(self.image_file, ext=2)
+        wt=fitsio.read(self.image_file, ext=3)
         if self.bkg_file is not None:
             print self.bkg_file
             bkg=fitsio.read(self.bkg_file, ext=1)
@@ -57,8 +60,10 @@ class Image(object):
             self.bkg=None
 
         self.image=image
+        self.bpm=bpm
+        self.wt=wt
 
-class CutoutMaker(object):
+class EyeballMaker(object):
     def __init__(self, **keys):
         """
         parameters
@@ -77,38 +82,90 @@ class CutoutMaker(object):
         output_file: string
             Name of output file
         """
+        self.types=keys['types']
+
         self.image_file=keys['image_file']
         self.bkg_file=keys['bkg_file']
-        self.cat_file=keys['cat_file']
-        self.cutout_size=keys['cutout_size']
-        self.ncutout=keys['ncutout']
+
+        self.cutout_size=keys.get('cutout_size',None)
+        self.ncutout=keys.get('ncutout',None)
+
+        if 'cutouts' in self.types:
+            self.docut=True
+        else:
+            self.docut=False
 
         self._load_data()
-        self._set_centers()
 
-    def write_cutouts(self, cutouts_file, mosaic_file):
-        """
-        Write the cutouts.  Also fill in a mosaic
-        """
-        _make_dir(cutouts_file)
-        _make_dir(mosaic_file)
-        self._make_mosaic()
-        self._write_fits(cutouts_file)
-        self._write_mosaic_jpeg(mosaic_file)
+        if self.docut:
+            self.cat_file=keys['cat_file']
 
-    def _write_fits(self, cutouts_file):
-        print cutouts_file
-        with fitsio.FITS(cutouts_file,'rw',clobber=True) as fits:
-            meta,cendata=self._get_tables()
+            self._set_seed()
+            self._set_centers()
+            self._make_mosaic()
+
+    def write_fits(self, fitsfile, **keys):
+        print fitsfile
+        _make_dir(fitsfile)
+
+        with fitsio.FITS(fitsfile,'rw',clobber=True) as fits:
+            meta = self._get_meta()
             fits.write(meta, extname="metadata")
-            fits.write(cendata, extname="centers")
-            fits.write(self.mosaic, extname="mosaic")
 
-    def _write_mosaic_jpeg(self, mosaic_file):
+            if self.docut:
+                cendata=self._get_cen_table()
+                fits.write(cendata, extname="centers")
+                fits.write(self.mosaic, extname="mosaic")
+
+            tim = self._prepare_image(**keys)
+            fits.write(tim, extname="field")
+
+            tbpm = self._prepare_combined_bpm(**keys)
+            fits.write(tbpm, extname="bpm_and_weight")
+
+    def write_mosaic_jpeg(self, mosaic_jpg, boost=MOSAIC_BOOST):
+        """
+        Writeout jpeg version of mosaic
+        """
         import images
-        print mosaic_file
-        m=images.boost(self.mosaic, MOSAIC_BOOST)
-        jpegs.write_se_jpeg(mosaic_file, m)
+        print mosaic_jpg
+        _make_dir(mosaic_jpg)
+        m=images.boost(self.mosaic, boost)
+        jpegs.write_se_jpeg(mosaic_jpg, m)
+
+
+    def _prepare_image(self, rebin=CHIP_REBIN):
+        from numpy import flipud
+        import images
+        if rebin <= 1:
+            imrebin=self.image
+        else:
+            imrebin=images.rebin(self.image, rebin)
+        
+        imout = flipud(imrebin)
+        imout = imout.transpose()
+        return imout
+
+    def _prepare_combined_bpm(self, rebin=CHIP_REBIN):
+        from numpy import flipud
+        import images
+
+        bpm=self.bpm.copy()
+        wt_low = numpy.where(self.wt < 0.0001)
+
+        if wt_low[0].size > 0:
+            bpm[wt_low] |= 2**16-1
+
+        if rebin <= 1:
+            bpm_rebin=bpm
+        else:
+            bpm_rebin= rebin_bitmask_or(bpm, rebin)
+
+        imout = flipud(bpm_rebin)
+        imout = imout.transpose()
+        return imout
+
+
 
     def _add_to_mosaic(self, cutout, i):
 
@@ -141,28 +198,40 @@ class CutoutMaker(object):
             self._add_to_mosaic(sub_im, i)
 
 
+    def _get_meta(self):
 
-    def _get_tables(self):
         istr='S%d' % len(self.image_file)
         bstr='S%d' % len(self.bkg_file)
-        cstr='S%d' % len(self.cat_file)
-        ncen=len(self.centers)
 
         metadt=[('image_file',istr),
-                ('bkg_file',bstr),
-                ('cat_file',cstr),
-                ('cutout_size','i4'),
-                ('ncutout','i4')]
-        cendt=[('index','i4'),
-               ('cen_row','f4'),
-               ('cen_col','f4')]
+                ('bkg_file',bstr)]
+
+
+        if self.docut:
+            cstr='S%d' % len(self.cat_file)
+            metadt+=[('cat_file',cstr),
+                     ('cutout_size','i4'),
+                     ('ncutout','i4')]
 
         meta=numpy.zeros(1, dtype=metadt)
         meta['image_file']=self.image_file
         meta['bkg_file']=self.bkg_file
-        meta['cat_file']=self.cat_file
-        meta['cutout_size'] = self.cutout_size
-        meta['ncutout'] = ncen
+
+        if self.docut:
+            meta['cat_file']=self.cat_file
+            meta['cutout_size'] = self.cutout_size
+            meta['ncutout'] = ncen
+
+        return meta
+
+
+
+    def _get_cen_table(self):
+        ncen=len(self.centers)
+
+        cendt=[('index','i4'),
+               ('cen_row','f4'),
+               ('cen_col','f4')]
 
         cendata=numpy.zeros(ncen, dtype=cendt)
 
@@ -171,9 +240,12 @@ class CutoutMaker(object):
             cendata['cen_row'][i] = cen[0]
             cendata['cen_col'][i] = cen[1]
 
-        return meta,cendata
+        return cendata
 
     def _set_centers(self):
+        # always want same random set for given image
+        numpy.random.seed(self._seed) 
+
         selector=CatalogSelector(self.cat,
                                  self.image.shape,
                                  self.cutout_size)
@@ -198,15 +270,29 @@ class CutoutMaker(object):
 
     def _load_data(self):
         imobj=Image(image_file=self.image_file,
-                 bkg_file=self.bkg_file)
+                    bkg_file=self.bkg_file)
 
         self.image_obj=imobj
         self.image=imobj.image
-        self.cat=fitsio.read(self.cat_file,
-                             ext=2,
-                             lower=True,
-                             verbose=True)
+        self.bpm=imobj.bpm
+        self.wt=imobj.wt
+        if self.docut:
+            self.cat=fitsio.read(self.cat_file,
+                                 ext=2,
+                                 lower=True,
+                                 verbose=True)
 
+
+    def _set_seed(self):
+        bname=os.path.basename(self.image_file)
+        bname=bname.replace('DECam_','')
+        bname=bname.replace('.fits.fz','')
+        bname=bname.replace('.fits','')
+        # skip leading 00
+        bname=bname[2:]
+
+        self._seed = _string_to_int(bname)
+        print 'seed:',self._seed
 
 class Cutout(object):
     def __init__(self, image, cen, size):
@@ -311,5 +397,52 @@ def _make_dir(fname):
         except:
             # probably a race condition
             pass
+
+
+def _string_to_int(s):
+    """
+    Just take first ten digits
+    """
+    #ord3 = lambda x : '%.3d' % ord(x)
+    #return int(''.join(map(ord3, s)))
+    ord0 = lambda x : '%d' % ord(x)
+    ival=int(''.join(map(ord0, s)))
+    return ival
+
+def or_elements(arr):
+    x = 0
+    for xi in arr.flat:
+        x |= xi
+
+    return x
+
+def rebin_bitmask_or(a, rebin_fac):
+    """
+    rebin using builting array methods
+
+    a.reshape(args[0],factor[0],).mean(1) 
+    a.reshape(args[0],factor[0],args[1],factor[1],).mean(1).mean(2)
+    """
+    from numpy import asarray
+    shape = a.shape
+
+    newshape = asarray(shape)/rebin_fac
+    factor = asarray(shape)/newshape
+
+    rs_a = a.reshape(newshape[0],factor[0],newshape[1],factor[1])
+    
+    new_a1 = numpy.zeros( (newshape[0], newshape[1], factor[1]), dtype=a.dtype)
+
+    for i0 in xrange(newshape[0]):
+        for i2 in xrange(newshape[1]):
+            for i3 in xrange(factor[1]):
+                new_a1[i0,i2,i3] = or_elements(rs_a[i0,:,i2,i3])
+
+    new_a2 = numpy.zeros( (newshape[0], newshape[1]), dtype=a.dtype)
+    for i0 in xrange(newshape[0]):
+        for i1 in xrange(newshape[1]):
+            new_a2[i0,i1] = or_elements(new_a1[i0,i1,:])
+    
+    return new_a2
 
 
