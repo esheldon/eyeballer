@@ -24,8 +24,8 @@ def fpack_file(tmp_fitsfile, fitsfile):
 
     if not os.path.exists(fitsfile):
         raise ValueError("fpacked filem missing: %s" % fitsfile)
-    #print 'removing:',tmp_fitsfile
-    #os.remove(tmp_fitsfile)
+    print 'removing:',tmp_fitsfile
+    os.remove(tmp_fitsfile)
 
 def main():
     options, args = parser.parse_args(sys.argv[1:])

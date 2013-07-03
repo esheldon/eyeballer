@@ -17,6 +17,10 @@ PADDING = 10
 CHIP_REBIN=4
 MOSAIC_BOOST=3
 
+WEIGHT_BIT=15
+WEIGHT_FLAG=2**WEIGHT_BIT
+
+
 class Image(object):
     def __init__(self, **keys):
         """
@@ -154,7 +158,7 @@ class EyeballMaker(object):
         wt_low = numpy.where(self.wt < 0.0001)
 
         if wt_low[0].size > 0:
-            bpm[wt_low] |= 2**16-1
+            bpm[wt_low] |= WEIGHT_FLAG
 
         if rebin <= 1:
             bpm_rebin=bpm
