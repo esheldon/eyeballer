@@ -44,8 +44,7 @@ class Image(object):
         _make_dir(fname)
         print fname
         if rebin:
-            import images
-            imrebin=images.rebin(self.image, rebin)
+            imrebin=rebin_image(self.image, rebin)
             jpegs.write_se_jpeg(fname, imrebin)
         else:
             jpegs.write_se_jpeg(fname, self.image)
@@ -131,20 +130,18 @@ class EyeballMaker(object):
         """
         Writeout jpeg version of mosaic
         """
-        import images
         print mosaic_jpg
         _make_dir(mosaic_jpg)
-        m=images.boost(self.mosaic, boost)
+        m=boost_image(self.mosaic, boost)
         jpegs.write_se_jpeg(mosaic_jpg, m)
 
 
     def _prepare_image(self, rebin=CHIP_REBIN):
         from numpy import flipud
-        import images
         if rebin <= 1:
             imrebin=self.image
         else:
-            imrebin=images.rebin(self.image, rebin)
+            imrebin=rebin_image(self.image, rebin)
         
         imout = flipud(imrebin)
         imout = imout.transpose()
@@ -152,7 +149,6 @@ class EyeballMaker(object):
 
     def _prepare_combined_bpm(self, rebin=CHIP_REBIN):
         from numpy import flipud
-        import images
 
         bpm=self.bpm.copy()
         wt_low = numpy.where(self.wt < 0.0001)
@@ -448,5 +444,42 @@ def rebin_bitmask_or(a, rebin_fac):
             new_a2[i0,i1] = or_elements(new_a1[i0,i1,:])
     
     return new_a2
+
+def rebin_image(im, factor, dtype=None):
+    """
+    Rebin the image so there are fewer pixels.  The pixels are simply
+    averaged.
+    """
+    factor=int(factor)
+    s = im.shape
+    if ( (s[0] % factor) != 0
+            or (s[1] % factor) != 0):
+        raise ValueError("shape in each dim (%d,%d) must be "
+                   "divisible by factor (%d)" % (s[0],s[1],factor))
+
+    newshape=numpy.array(s)/factor
+    if dtype is None:
+        a=im
+    else:
+        a=im.astype(dtype)
+
+    return a.reshape(newshape[0],factor,newshape[1],factor,).sum(1).sum(2)/factor/factor
+
+def boost_image( a, factor):
+    """
+    Resize an array to larger shape, simply duplicating values.
+    """
+    from numpy import mgrid
+    
+    factor=int(factor)
+    if factor < 1:
+        raise ValueError("boost factor must be >= 1")
+
+    newshape=numpy.array(a.shape)*factor
+
+    slices = [ slice(0,old, float(old)/new) for old,new in zip(a.shape,newshape) ]
+    coordinates = mgrid[slices]
+    indices = coordinates.astype('i')   #choose the biggest smaller integer index
+    return a[tuple(indices)]
 
 

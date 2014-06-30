@@ -18,7 +18,5 @@ Cutout file format
 
 Dependencies
 ------------
-- fitsio https://github.com/esheldon/fitsio
-- images.py Erin Sheldon's library https://github.com/esheldon/espy
-- PIL
 - numpy
+- fitsio https://github.com/esheldon/fitsio
