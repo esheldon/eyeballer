@@ -68,7 +68,7 @@ def get_command_template():
     note indent
     """
     t="""echo %(expname)s %(ccd)s
-./master.sh %(image)s %(bkg)s %(field_fits)s &> %(log)s\n"""
+./master.sh %(image_url)s %(bkg)s %(field_fits)s &> %(log)s\n"""
     return t
 
 def open_command_file(eye_run, num, missing=False):
