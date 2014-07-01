@@ -29,6 +29,31 @@ def get_script_dir(run):
     rd=get_run_dir(run)
     return os.path.join(rd, 'scripts')
 
+def get_master_file(run):
+    """
+    The script directory
+
+    parameters
+    ----------
+    run: string
+        the run identifier
+    """
+    sd=get_script_dir(run)
+    return os.path.join(sd, 'master.sh')
+
+def get_wq_file(run, num):
+    """
+    The script directory
+
+    parameters
+    ----------
+    run: string
+        the run identifier
+    """
+    sd=get_script_dir(run)
+    fname='sub-%06d.yaml' % num
+    return os.path.join(sd, fname)
+
 
 def get_output_dir(run, expname):
     """
@@ -82,6 +107,22 @@ def get_config_file(run):
     """ 
 
     d=get_config_dir()
-    fname='eyeball-%s.yaml' % run
+    fname='run-%s.yaml' % run
     return os.path.join(d, fname)
 
+def read_config(run):
+    """
+    read the config file
+
+    parameters
+    ----------
+    run: string
+        the run identifier
+    """ 
+    import yaml
+    path=get_config_file(run)
+
+    with open(path) as fobj:
+        conf=yaml.load(fobj)
+
+    return conf

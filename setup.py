@@ -2,16 +2,17 @@ import os
 import glob
 from distutils.core import setup
 
-scripts=['make-se-eyeball.py','make-se-eyeball-full.py']
+scripts=['make-se-eyeball.py',
+         'make-se-eyeball-full.py',
+         'make-scripts.py']
 scripts=[os.path.join('bin',s) for s in scripts]
 
 config_files=glob.glob('config/*.yaml')
 
 data_files=[]
 for f in config_files:
-    d=os.path.dirname(f)
     n=os.path.basename(f)
-    d=os.path.join('share',d)
+    d=os.path.join('share','eyeball-config')
 
     data_files.append( (d,[f]) )
 
