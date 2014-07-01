@@ -4,7 +4,8 @@ from distutils.core import setup
 
 scripts=['make-se-eyeball.py',
          'make-se-eyeball-full.py',
-         'make-scripts.py']
+         'make-scripts.py',
+         'make-db.py']
 scripts=[os.path.join('bin',s) for s in scripts]
 
 config_files=glob.glob('config/*.yaml')

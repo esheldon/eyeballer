@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 
 def get_dir():
@@ -41,7 +42,7 @@ def get_master_file(run):
     sd=get_script_dir(run)
     return os.path.join(sd, 'master.sh')
 
-def get_command_file(run, num):
+def get_command_file(run, num, missing=False):
     """
     The command file
 
@@ -49,12 +50,18 @@ def get_command_file(run, num):
     ----------
     run: string
         the run identifier
+    missing: bool
+        For missing files
     """
     sd=get_script_dir(run)
-    return os.path.join(sd, 'commands-%06d.sh' % num)
+    if missing:
+        fname='commands-missing-%06d.sh' % num
+    else:
+        fname='commands-%06d.sh' % num
+    return os.path.join(sd, fname)
 
 
-def get_wq_file(run, num):
+def get_wq_file(run, num, missing=False):
     """
     The script directory
 
@@ -62,9 +69,14 @@ def get_wq_file(run, num):
     ----------
     run: string
         the run identifier
+    missing: bool
+        For missing files
     """
     sd=get_script_dir(run)
-    fname='sub-%06d.yaml' % num
+    if missing:
+        fname='sub-missing-%06d.yaml' % num
+    else:
+        fname='sub-%06d.yaml' % num
     return os.path.join(sd, fname)
 
 
@@ -139,3 +151,54 @@ def read_config(run):
         conf=yaml.load(fobj)
 
     return conf
+
+def get_db_dir(run):
+    """
+    The database directory
+
+    parameters
+    ----------
+    run: string
+        the run identifier
+    """
+    rd=get_run_dir(run)
+    return os.path.join(rd, 'db')
+
+def get_db_file(run):
+    """
+    The db file path
+
+    parameters
+    ----------
+    run: string
+        the run identifier
+    """
+    dd=get_db_dir(run)
+    fname='%s.db' % run
+    return os.path.join(dd, fname)
+
+
+def load_run_explist(fname):
+    """
+    load a three-column file with run, expname, band
+
+    parameters
+    ----------
+    fname: string
+        The path to the file
+
+    output
+    ------
+    list of dicts holding run and expname
+    """
+    run_explist=[]
+    print("loading run,exp from:",fname)
+    with open(fname) as fobj:
+        for line in fobj:
+            ls=line.split()
+
+            run_explist.append( {'run':ls[0], 'expname':ls[1], 'band':ls[2]} )
+
+    return run_explist
+
+
