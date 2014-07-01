@@ -4,7 +4,7 @@ def get_dir():
     """
     Get the main directory
     """
-    return os.environ['EYEBALL_DATADIR']
+    return os.environ['EYEBALLER_DATADIR']
 
 def get_run_dir(run):
     """
@@ -40,6 +40,19 @@ def get_master_file(run):
     """
     sd=get_script_dir(run)
     return os.path.join(sd, 'master.sh')
+
+def get_command_file(run, num):
+    """
+    The command file
+
+    parameters
+    ----------
+    run: string
+        the run identifier
+    """
+    sd=get_script_dir(run)
+    return os.path.join(sd, 'commands-%06d.sh' % num)
+
 
 def get_wq_file(run, num):
     """
@@ -81,11 +94,11 @@ def get_output_file(run, expname, ccd):
         the exposurename
     """
     d=get_output_dir(run, expname)
-    fname='eye_%(run)s_%(expname)s_%(ccd)02d_field.fits.fz'
+    fname='%(run)s_%(expname)s_%(ccd)02d_field.fits.fz'
     fname = fname % {'run':run,
                      'expname':expname,
                      'ccd':ccd}
-    path=os.path.join(d, path)
+    path=os.path.join(d, fname)
     return path
 
 def get_config_dir():
@@ -107,7 +120,7 @@ def get_config_file(run):
     """ 
 
     d=get_config_dir()
-    fname='run-%s.yaml' % run
+    fname='%s.yaml' % run
     return os.path.join(d, fname)
 
 def read_config(run):
