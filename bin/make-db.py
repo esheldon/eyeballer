@@ -67,7 +67,7 @@ class SqliteMaker(object):
         print('populating files table')
 
         insert_query="""
-        INSERT INTO {tablename} VALUES (?, ?, ?, ?, ?)
+        INSERT INTO {tablename} VALUES (?, ?, ?, ?, ?, ?)
         """.format(tablename=self.files_table)
 
         skip_ccds=desdb.files.SKIP_CCDS
@@ -94,7 +94,7 @@ class SqliteMaker(object):
                     print('    %d/%d %s' % (itot+1,ntot,fzfile))
 
                 ccdname='%s_%02i' % (r['expname'], ccd)
-                data=(ccdname, r['expname'], ccd, r['band'], fzfile)
+                data=(r['run'],r['expname'], ccdname, ccd, r['band'], fzfile)
 
                 curs.execute(insert_query, data)
 
@@ -108,8 +108,9 @@ class SqliteMaker(object):
 
         q="""
 create table {tablename} (
-    ccdname text,
+    run text,
     expname text,
+    ccdname text,
     ccd integer,
     band text,
     field text
