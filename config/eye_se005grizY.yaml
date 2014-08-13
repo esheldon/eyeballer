@@ -1,4 +1,4 @@
-run_explist: "/gpfs01/astro/workarea/desdata/syncfiles/get-red/2014-08-07-y1a1/run-exp-band-list.txt"
+run_explist: "/gpfs01/astro/workarea/desdata/syncfiles/get-red/2014-08-07-y1a1/run-exp-band-list-without-missing.txt"
 comment: |
     grizY, partial y1a1 list
     holds run expname band
