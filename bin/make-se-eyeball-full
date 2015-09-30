@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
     %prog [options] image bkg cat fitsfile mosaic_jpg field_jpg2 field_jpg4
 
