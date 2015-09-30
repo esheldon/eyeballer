@@ -34,8 +34,8 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    image=args[0]
-    bkg=args[1]
+    image_file=args[0]
+    bkg_file=args[1]
     fitsfile=args[2]
 
     if '.fz' not in fitsfile:
