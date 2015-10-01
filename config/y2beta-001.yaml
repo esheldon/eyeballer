@@ -1,0 +1,5 @@
+metalist: "/astro/u/astrodat/data/DES/syncfiles/get-red/2015-09-29-y2test/reqnum-expnum-attnum-ccdnum-band.txt"
+
+comment: |
+    grizY, partial y1a1 list
+    holds run expname band
