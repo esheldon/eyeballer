@@ -88,7 +88,7 @@ def get_output_file(run,
                     expnum,
                     attnum,
                     ccdnum,
-                    band
+                    band,
                     df=None):
     """
     The output directory
@@ -244,6 +244,7 @@ def load_run_explist(fname):
 # outputs from any weak lensing pipeline
 #
 
+'''
 # se exp names have underscores so we use underscores
 _fs1['wlpipe'] = {'dir': '$DESDATA/wlpipe'}
 _fs1['wlpipe_run'] = {'dir': _fs1['wlpipe']['dir']+'/$RUN'}
@@ -388,3 +389,4 @@ _fs1['wlpipe_check_reduce'] = {'dir': _fs1['wlpipe_pbs']['dir'],
                               'name': 'reduce-check.py'}
 
 
+'''
