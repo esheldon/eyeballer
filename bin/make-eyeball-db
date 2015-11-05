@@ -21,11 +21,10 @@ class SqliteMaker(object):
         conf=eyeballer.files.read_config(self.run)
 
         self.conf=conf
-        self.run_explist=eyeballer.files.load_run_explist(conf['run_explist'])
 
 
         self.files_table='files'
-        self.files_index_fields=['ccdname','expname','ccd','band']
+        self.files_index_fields=['reqnum','expnum','attnum','ccdnum','ccd','band']
         self.qa_table='qa'
         self.qa_index_fields=['userid','fileid','score','comments']
 
@@ -40,7 +39,7 @@ class SqliteMaker(object):
         self.populate_files_table()
 
         self.add_indices(self.files_table, self.files_index_fields)
-    
+
     def add_indices(self, tablename, index_fields):
         """
         Add indexes to the table
@@ -68,52 +67,64 @@ class SqliteMaker(object):
         print('populating files table')
 
         insert_query="""
-        INSERT INTO {tablename} VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO {tablename} VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """.format(tablename=self.files_table)
-
-        skip_ccds=desdb.files.SKIP_CCDS
 
         curs=self.conn.cursor()
 
+        df=desdb.files.DESFiles(version='v2beta')
+
         nmissing=0
-        ntot=len(self.run_explist)*(62 - len(skip_ccds))
-        itot=-1
-        for r in self.run_explist:
-            for ccd in xrange(1,62+1):
-                if ccd in skip_ccds:
-                    continue
+        ntot=0
+        conf_list = files.read_metalist_input(self.conf['metalist'])
+        for i,conf in enumerate(conf_list):
 
-                itot += 1
+            fzfile = eyeballer.files.get_output_file(self.run, df=df, **conf)
 
-                fzfile=eyeballer.files.get_output_file(self.run,r['expname'],ccd)
-                if not os.path.exists(fzfile):
-                    print("error: missing file:",fzfile)
-                    nmissing += 1
-                    continue
+            conf['expname']='D%08d' % expnum
 
-                if (itot % 100) == 0:
-                    print('    %d/%d %s' % (itot+1,ntot,fzfile))
+            if not os.path.exists(fzfile):
+                print("error: missing file:",fzfile)
+                nmissing += 1
+                continue
 
-                ccdname='%s_%02i' % (r['expname'], ccd)
-                data=(r['run'],r['expname'], ccdname, ccd, r['band'], fzfile)
+            if (i % 100) == 0:
+                print('    %d %s' % (i+1,fzfile))
 
-                curs.execute(insert_query, data)
+            data=(conf['mystery_path'],
+                  conf['reqnum'], 
+                  conf['expnum'],
+                  conf['attnum'],
+                  conf['ccdnum'],
+                  conf['ccdnum'],
+                  conf['band'],
+                  conf['expname'],
+                  fzfile)
+
+            curs.execute(insert_query, data)
+
+            ntot+=1
 
         curs.close()
         self.conn.commit()
 
         print('%d/%d were missing' % (nmissing, ntot))
+        print('db is here:',self.url)
 
     def make_files_table(self):
         curs=self.conn.cursor()
 
         q="""
 create table {tablename} (
-    run text,
+    mystery_path text,
+    reqnum integer,
+    expnum integer,
+    attnum integer,
+    ccdnum integer,
+    ccd    integer,
+    band   text,
+
     expname text,
-    ccdname text,
-    ccd integer,
-    band text,
     field text
 )
         """.format(tablename=self.files_table)
@@ -152,7 +163,7 @@ create table {tablename} (
         if os.path.exists(self.url):
             print('removing existing:',self.url)
             os.remove(self.url)
-        
+
         print('opening database:',self.url)
         self.conn=sqlite.Connection(self.url)
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-    %prog [options] image bkg fitsfile
+    %prog [options] run image bkg fitsfile
 
 Make a FITS file with a reduced version of the field and
 some metadata, as well as the bpm
@@ -9,6 +9,7 @@ from __future__ import print_function
 import sys, os
 from optparse import OptionParser
 from eyeballer.cutouts import EyeballMaker
+from eyeballer import files
 
 parser=OptionParser(__doc__)
 
@@ -30,19 +31,22 @@ def fpack_file(tmp_fitsfile, fitsfile):
 def main():
     options, args = parser.parse_args(sys.argv[1:])
 
-    if len(args) != 3:
+    if len(args) != 4:
         parser.print_help()
         sys.exit(1)
 
-    image_file=args[0]
-    bkg_file=args[1]
-    fitsfile=args[2]
+    run=args[0]
+    image_file=args[1]
+    bkg_file=args[2]
+    fitsfile=args[3]
+
+    conf=files.read_config(run)
 
     if '.fz' not in fitsfile:
         raise ValueError("expected .fz fits file name")
     tmp_fitsfile=fitsfile.replace('.fz','')
 
-    cutmaker=EyeballMaker(image_file, bkg_file)
+    cutmaker=EyeballMaker(conf, image_file, bkg_file)
 
     cutmaker.write_fits(tmp_fitsfile)
     fpack_file(tmp_fitsfile, fitsfile)

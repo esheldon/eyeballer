@@ -83,13 +83,7 @@ def get_wq_file(run, num, missing=False):
     return os.path.join(sd, fname)
 
 
-def get_output_file(run,
-                    reqnum,
-                    expnum,
-                    attnum,
-                    ccdnum,
-                    band,
-                    df=None):
+def get_output_file(run, **keys):
     """
     The output directory
 
@@ -97,17 +91,16 @@ def get_output_file(run,
     ----------
     run: string
         the run identifier
+    required keywords: project,mystery_path,reqnum,expnum,attnum,ccdnum,band
+    optional keywords: df
     """
+
+    df = keys.get('df',None)
     if df is None:
         df=desdb.files.DESFiles()
 
-    imfile=df.url(type='red_immask',
-                  reqnum=reqnum,
-                  expnum=expnum,
-                  attnum=attnum,
-                  ccdnum=ccdnum,
-                  band=band)
-    
+    imfile=df.url(type='red_immask', **keys)
+
     rundir=get_run_dir(run)
     desdata=os.environ['DESDATA']
     fname=imfile.replace(desdata,rundir)
@@ -238,6 +231,30 @@ def load_run_explist(fname):
             run_explist.append( {'run':ls[0], 'expname':ls[1], 'band':ls[2]} )
 
     return run_explist
+
+def read_metalist_input(fname):
+    dlist=[]
+    with open(fname) as fobj:
+        for line in fobj:
+            path,reqnum,expnum,attnum,ccdnum,band=line.split()
+
+            psplit = path.split('/')
+
+            project = psplit[0]
+            mystery_path = psplit[3]
+            mystery_path = mystery_path.split('-')[0]
+
+            conf=dict(project=project,
+                      mystery_path=mystery_path,
+                      reqnum=int(reqnum),
+                      expnum=int(expnum),
+                      attnum=int(attnum),
+                      ccdnum=int(ccdnum),
+                      band=band)
+
+            dlist.append(conf)
+
+    return dlist
 
 
 #

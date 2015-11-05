@@ -38,7 +38,7 @@ class Image(dict):
             The image from which to cut
         bkg_file: FITS filename
             The associated background file
-        image_ext, bpm_ext, 
+        image_ext, bpm_ext, wt_ext, bkg_ext
         """
 
         self.update(keys)
@@ -49,7 +49,6 @@ class Image(dict):
         self['image_ext'] = self.get('image_ext','sci')
         self['bpm_ext']   = self.get('bpm_ext','msk')
         self['wt_ext']    = self.get('wt_ext','wgt')
-
         self['bkg_ext']   = self.get('bkg_ext','sci')
 
         self._load_data()
@@ -83,7 +82,7 @@ class Image(dict):
         self.wt=wt
 
 class EyeballMaker(object):
-    def __init__(self, image_file, bkg_file, **keys):
+    def __init__(self, conf, image_file, bkg_file, **keys):
         """
         parameters
         ----------
@@ -101,12 +100,13 @@ class EyeballMaker(object):
             marked in the bpm.  Default None
         """
 
+        self.conf=conf
         self.image_file=image_file
         self.bkg_file=bkg_file
 
-        self.rebin=keys.get('rebin',CHIP_REBIN)
+        self.rebin=conf.get('rebin',CHIP_REBIN)
 
-        self.low_weight=keys.get('low_weight',None)
+        self.low_weight=conf.get('low_weight',None)
 
         self._load_data()
 
@@ -137,7 +137,7 @@ class EyeballMaker(object):
             imrebin=self.image_obj.image
         else:
             imrebin=rebin_image(self.image_obj.image, self.rebin)
-        
+
         imout = flipud(imrebin)
         imout = imout.transpose()
         return imout
@@ -179,7 +179,7 @@ class EyeballMaker(object):
 
 
     def _load_data(self):
-        imobj=Image(self.image_file, self.bkg_file)
+        imobj=Image(self.image_file, self.bkg_file, **self.conf)
 
         self.image_obj=imobj
 
@@ -227,7 +227,7 @@ def rebin_bitmask_or(a, rebin_fac):
     factor = asarray(shape)/newshape
 
     rs_a = a.reshape(newshape[0],factor[0],newshape[1],factor[1])
-    
+
     new_a1 = numpy.zeros( (newshape[0], newshape[1], factor[1]), dtype=a.dtype)
 
     for i0 in xrange(newshape[0]):
@@ -239,7 +239,7 @@ def rebin_bitmask_or(a, rebin_fac):
     for i0 in xrange(newshape[0]):
         for i1 in xrange(newshape[1]):
             new_a2[i0,i1] = or_elements(new_a1[i0,i1,:])
-    
+
     return new_a2
 
 def rebin_image(im, factor, dtype=None):
@@ -267,7 +267,7 @@ def boost_image( a, factor):
     Resize an array to larger shape, simply duplicating values.
     """
     from numpy import mgrid
-    
+
     factor=int(factor)
     if factor < 1:
         raise ValueError("boost factor must be >= 1")
