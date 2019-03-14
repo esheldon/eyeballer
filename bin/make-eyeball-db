@@ -8,6 +8,7 @@ from optparse import OptionParser
 import desdb
 import fitsio
 import eyeballer
+from eyeballer import files
 
 parser=OptionParser(__doc__)
 
@@ -67,7 +68,7 @@ class SqliteMaker(object):
         print('populating files table')
 
         insert_query="""
-        INSERT INTO {tablename} VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO {tablename} VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """.format(tablename=self.files_table)
 
         curs=self.conn.cursor()
@@ -81,7 +82,7 @@ class SqliteMaker(object):
 
             fzfile = eyeballer.files.get_output_file(self.run, df=df, **conf)
 
-            conf['expname']='D%08d' % expnum
+            conf['expname']='D%08d' % conf['expnum']
 
             if not os.path.exists(fzfile):
                 print("error: missing file:",fzfile)
@@ -91,7 +92,8 @@ class SqliteMaker(object):
             if (i % 100) == 0:
                 print('    %d %s' % (i+1,fzfile))
 
-            data=(conf['mystery_path'],
+            data=(conf['project'],
+                  conf['mystery_path'],
                   conf['reqnum'], 
                   conf['expnum'],
                   conf['attnum'],
@@ -116,6 +118,7 @@ class SqliteMaker(object):
 
         q="""
 create table {tablename} (
+    project text,
     mystery_path text,
     reqnum integer,
     expnum integer,
